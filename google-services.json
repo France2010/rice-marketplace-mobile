@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "859597098078",
+    "project_id": "rice-marketplace-9c381",
+    "storage_bucket": "rice-marketplace-9c381.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:859597098078:android:75d49ba1f5992dc8b038cf",
+        "android_client_info": {
+          "package_name": "com.france2010.ricemarketplace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-PsAoQ0H9sKLNKvR05ub_SRw8ekdKNfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
