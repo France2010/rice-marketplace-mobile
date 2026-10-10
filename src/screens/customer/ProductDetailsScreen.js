@@ -3,7 +3,7 @@ import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, ScrollView,
 import { useTranslation } from 'react-i18next';
 import { useCartStore } from '../../store/cartStore';
 import { fullImageUrl } from '../../api/client';
-
+import api from '../../api/client';
 const DEFAULT_IMG = 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800';
 
 export default function ProductDetailsScreen({ route, navigation }) {
@@ -26,6 +26,26 @@ export default function ProductDetailsScreen({ route, navigation }) {
       { text: t('cart'), onPress: () => navigation.navigate('Cart') },
     ]);
   };
+  // Add this state
+const [reviews, setReviews] = useState({ reviews: [], avg: 0, count: 0 });
+
+useEffect(() => {
+  api.get(`/reviews/product/${product.id}`).then((r) => setReviews(r.data)).catch(() => {});
+}, [product.id]);
+
+// Add this JSX after the Add to Cart button
+<View style={{ marginTop: 24 }}>
+  <Text style={{ fontSize: 18, fontWeight: '700' }}>
+    ⭐ {reviews.avg || '—'} ({reviews.count} reviews)
+  </Text>
+  {reviews.reviews.map((r) => (
+    <View key={r.id} style={{ padding: 12, backgroundColor: '#f9f9f9', borderRadius: 8, marginTop: 8 }}>
+      <Text style={{ fontWeight: '600' }}>{r.full_name}</Text>
+      <Text style={{ color: '#fbc02d' }}>{'★'.repeat(r.rating)}</Text>
+      {!!r.comment && <Text style={{ marginTop: 4 }}>{r.comment}</Text>}
+    </View>
+  ))}
+</View>
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>

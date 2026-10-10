@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api/client';
+import { registerForPushNotifications } from '../utils/push';
 
 export const useAuthStore = create((set) => ({
   user: null,
@@ -12,6 +13,7 @@ export const useAuthStore = create((set) => ({
     const userRaw = await AsyncStorage.getItem('user');
     if (token && userRaw) {
       set({ token, user: JSON.parse(userRaw), loading: false });
+      registerForPushNotifications().catch(() => {});
     } else {
       set({ loading: false });
     }
@@ -22,6 +24,7 @@ export const useAuthStore = create((set) => ({
     await AsyncStorage.setItem('token', data.token);
     await AsyncStorage.setItem('user', JSON.stringify(data.user));
     set({ token: data.token, user: data.user });
+    registerForPushNotifications().catch(() => {});
   },
 
   register: async (payload) => {
@@ -29,6 +32,7 @@ export const useAuthStore = create((set) => ({
     await AsyncStorage.setItem('token', data.token);
     await AsyncStorage.setItem('user', JSON.stringify(data.user));
     set({ token: data.token, user: data.user });
+    registerForPushNotifications().catch(() => {});
   },
 
   logout: async () => {

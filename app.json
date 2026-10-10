@@ -11,9 +11,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#2E7D32"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.france2010.ricemarketplace"
@@ -25,20 +23,31 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#2E7D32"
       },
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "NOTIFICATIONS",
+        "VIBRATE"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2E7D32"
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "a83044ff-eceb-46e5-bee5-005b0c2671b5"
       }
-    },
-    "owner": "fransisco"
+    }
   }
 }
