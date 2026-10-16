@@ -13,6 +13,7 @@ import NotificationsScreen from '../screens/customer/NotificationsScreen';
 import EditOrderScreen from '../screens/customer/EditOrderScreen';
 import ProfileScreen from '../screens/shared/ProfileScreen';
 import ReviewScreen from '../screens/customer/ReviewScreen';
+import OrderDetailsScreen from '../screens/customer/OrderDetailsScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +28,7 @@ function ShopStack() {
       <Stack.Screen name="EditOrder" component={EditOrderScreen} options={{ title: 'Badilisha Oda' }} />
       <Stack.Screen name="Review" component={ReviewScreen} options={{ title: 'Toa Maoni' }} />
       <Tab.Screen name="Favorites" component={FavoritesScreen} options={{ title: '❤️ Vipendwa' }} />
+      <Stack.Screen name="OrderDetails"  component={OrderDetailsScreen}  options={{ title: 'Maelezo ya Oda' }}/>
     </Stack.Navigator>
   );
 }

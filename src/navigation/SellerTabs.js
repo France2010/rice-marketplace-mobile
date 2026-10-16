@@ -9,7 +9,7 @@ import AddProductScreen from '../screens/seller/AddProductScreen';
 import UpdateStockScreen from '../screens/seller/UpdateStockScreen';
 import SellerOrdersScreen from '../screens/seller/SellerOrdersScreen';
 import ProfileScreen from '../screens/shared/ProfileScreen';
-
+import SetDeliveryFeeScreen from '../screens/seller/SetDeliveryFeeScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +32,11 @@ function ProductsStack() {
         component={UpdateStockScreen}
         options={{ title: 'Update Stock' }}
       />
+      <Stack.Screen
+  name="SetDeliveryFee"
+  component={SetDeliveryFeeScreen}
+  options={{ title: 'Gharama ya Usafiri' }}
+/>
     </Stack.Navigator>
   );
 }

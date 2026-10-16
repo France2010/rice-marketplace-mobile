@@ -1,108 +1,103 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import api from '../../api/client';
 
 export default function OrdersScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
+  const { width } = useWindowDimensions();
 
-  const load = () => api.get('/orders/mine').then((r) => setOrders(r.data)).catch(() => {});
-  useEffect(() => {
-    load();
-    const unsub = navigation.addListener('focus', load);
-    return unsub;
-  }, [navigation]);
+  // 2 columns on normal phones, 3 on larger screens
+  const columns = width >= 600 ? 3 : 2;
 
-  const payLabel = (m) => (m === 'MOBILE_MONEY' ? '📱 Mobile Money' : '💵 Lipa Ukifika');
+  const load = () =>
+    api.get('/orders/mine').then((r) => setOrders(r.data)).catch(() => {});
 
-  const statusLabel = (s) => {
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [])
+  );
+
+  const payLabel = (m) => (m === 'MOBILE_MONEY' ? '📱 Mobile' : '💵 COD');
+
+  const statusInfo = (s) => {
     switch (s) {
-      case 'AWAITING_PAYMENT': return '⏳ Inasubiri malipo';
-      case 'PENDING': return '🆕 Mpya';
-      case 'PAID': return '💰 Imelipwa';
-      case 'ACCEPTED': return '✅ Imekubaliwa';
-      case 'READY': return '📦 Tayari';
-      case 'OUT_FOR_DELIVERY': return '🚚 Njiani';
-      case 'COMPLETED': return '🎉 Imekamilika';
-      case 'CANCELLED': return '❌ Imefutwa';
-      case 'REJECTED': return '❌ Imekataliwa';
-      default: return s;
+      case 'AWAITING_PAYMENT': return { label: '⏳ Inasubiri',   color: '#f57c00', bg: '#fff3e0' };
+      case 'PENDING':          return { label: '🆕 Mpya',         color: '#1976d2', bg: '#e3f2fd' };
+      case 'PAID':             return { label: '💰 Imelipwa',     color: '#2e7d32', bg: '#e8f5e9' };
+      case 'ACCEPTED':         return { label: '✅ Imekubaliwa',  color: '#2e7d32', bg: '#e8f5e9' };
+      case 'READY':            return { label: '📦 Tayari',        color: '#2e7d32', bg: '#e8f5e9' };
+      case 'OUT_FOR_DELIVERY': return { label: '🚚 Njiani',        color: '#0288d1', bg: '#e1f5fe' };
+      case 'COMPLETED':        return { label: '🎉 Imekamilika',   color: '#1b5e20', bg: '#c8e6c9' };
+      case 'CANCELLED':        return { label: '❌ Imefutwa',      color: '#c62828', bg: '#ffebee' };
+      case 'REJECTED':         return { label: '❌ Imekataliwa',   color: '#c62828', bg: '#ffebee' };
+      default: return { label: s, color: '#555', bg: '#f0f0f0' };
     }
   };
 
-  const cancelOrder = async (id) => {
-    Alert.alert('Futa oda?', 'Una uhakika?', [
-      { text: 'Hapana', style: 'cancel' },
-      {
-        text: 'Futa',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.post(`/orders/${id}/cancel`);
-            load();
-          } catch (e) {
-            Alert.alert('Error', e.response?.data?.error || e.message);
-          }
-        },
-      },
-    ]);
-  };
-
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f5', padding: 12 }}>
+    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      <View style={styles.summary}>
+        <Text style={styles.summaryText}>{orders.length} oda</Text>
+      </View>
+
       <FlatList
         data={orders}
+        key={columns}
+        numColumns={columns}
         keyExtractor={(i) => String(i.id)}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.num}>#{item.order_number}</Text>
-            <Text style={styles.meta}>{statusLabel(item.status)}</Text>
-            <Text style={styles.meta}>{payLabel(item.payment_method)}</Text>
-            <Text style={styles.total}>TZS {Number(item.total).toLocaleString()}</Text>
+        contentContainerStyle={{ padding: 8 }}
+        columnWrapperStyle={{ gap: 8 }}
+        renderItem={({ item }) => {
+          const si = statusInfo(item.status);
+          return (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate('Shop', {
+                  screen: 'OrderDetails',
+                  params: { orderId: item.id },
+                })
+              }
+            >
+              <Text style={styles.num} numberOfLines={1}>
+                #{item.order_number.slice(-6)}
+              </Text>
 
-            {item.status === 'PENDING' && (
-              <View style={styles.btnRow}>
-                <TouchableOpacity
-                  style={[styles.btn, styles.editBtn]}
-                  onPress={() =>
-                    navigation.navigate('Shop', {
-                      screen: 'EditOrder',
-                      params: { orderId: item.id },
-                    })
-                  }
+              <View style={[styles.badge, { backgroundColor: si.bg }]}>
+                <Text
+                  style={[styles.badgeText, { color: si.color }]}
+                  numberOfLines={1}
                 >
-                  <Text style={styles.editText}>✏️ Badilisha</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btn, styles.cancelBtn]}
-                  onPress={() => cancelOrder(item.id)}
-                >
-                  <Text style={styles.cancelText}>❌ Futa</Text>
-                </TouchableOpacity>
+                  {si.label}
+                </Text>
               </View>
-            )}
-{item.status === 'COMPLETED' && (
-  <TouchableOpacity
-    style={[styles.btn, { borderColor: '#fbc02d', backgroundColor: '#fff8e1', marginTop: 8 }]}
-    onPress={() => navigation.navigate('Shop', {
-      screen: 'Review',
-      params: { orderId: item.id },
-    })}
-  >
-    <Text style={{ color: '#f57c00', fontWeight: '700' }}>⭐ Toa Maoni</Text>
-  </TouchableOpacity>
-)}
-            {item.status === 'AWAITING_PAYMENT' && (
-              <TouchableOpacity
-                style={[styles.btn, styles.cancelBtn]}
-                onPress={() => cancelOrder(item.id)}
+
+              <Text style={styles.pay} numberOfLines={1}>
+                {payLabel(item.payment_method)}
+              </Text>
+
+              <Text
+                style={styles.total}
+                numberOfLines={1}
+                adjustsFontSizeToFit
               >
-                <Text style={styles.cancelText}>Futa Oda</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+                TZS {Number(item.total).toLocaleString()}
+              </Text>
+
+              <Text style={styles.viewHint}>Ona maelezo →</Text>
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', marginTop: 40 }}>Hakuna oda bado</Text>
+          <Text style={{ textAlign: 'center', marginTop: 40, color: '#888' }}>
+            Hakuna oda bado
+          </Text>
         }
       />
     </View>
@@ -110,14 +105,29 @@ export default function OrdersScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', padding: 14, borderRadius: 10, marginBottom: 10 },
-  num: { fontWeight: '700' },
-  meta: { color: '#666', marginTop: 4 },
-  total: { color: '#2e7d32', fontWeight: '700', marginTop: 4 },
-  btnRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  btn: { flex: 1, padding: 8, borderRadius: 6, alignItems: 'center', borderWidth: 1 },
-  editBtn: { borderColor: '#2e7d32', backgroundColor: '#e8f5e9' },
-  editText: { color: '#2e7d32', fontWeight: '600' },
-  cancelBtn: { borderColor: '#c62828', backgroundColor: '#ffebee' },
-  cancelText: { color: '#c62828', fontWeight: '600' },
+  summary: { paddingHorizontal: 16, paddingVertical: 10 },
+  summaryText: { color: '#666', fontWeight: '600', fontSize: 13 },
+  card: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    minHeight: 130,
+  },
+  num: { fontWeight: '700', fontSize: 13, marginBottom: 6 },
+  badge: {
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 10, alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  badgeText: { fontWeight: '700', fontSize: 10 },
+  pay: { color: '#666', fontSize: 11, marginBottom: 4 },
+  total: { color: '#2e7d32', fontWeight: '700', fontSize: 14, marginBottom: 8 },
+  viewHint: {
+    color: '#1976d2', fontSize: 11,
+    fontWeight: '600', marginTop: 'auto',
+  },
 });

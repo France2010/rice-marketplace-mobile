@@ -1,7 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const HOST = 'http://192.168.100.124:4000';
+// ☁️ Cloud backend
+const HOST = 'https://rice-marketplace-api.onrender.com';
 const BASE_URL = `${HOST}/api`;
 
 const api = axios.create({ baseURL: BASE_URL, timeout: 30000 });

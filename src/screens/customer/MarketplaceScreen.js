@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, StyleSheet, RefreshControl,
-  TouchableOpacity, Modal, ScrollView,
+  TouchableOpacity, Modal, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/client';
@@ -26,6 +26,10 @@ export default function MarketplaceScreen({ navigation }) {
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const cartCount = useCartStore((s) => s.items.length);
+  const { width } = useWindowDimensions();
+
+  // 2 on small phones, 3 on normal phones, 4 on tablets
+  const columns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
 
   const load = async () => {
     try {
@@ -59,10 +63,15 @@ export default function MarketplaceScreen({ navigation }) {
     setSortBy('newest');
   };
 
-  const activeCount = [gradeId, minPrice, maxPrice, sortBy !== 'newest' ? 1 : null].filter(Boolean).length;
-
+  const activeCount = [gradeId, minPrice, maxPrice, sortBy !== 'newest' ? 1 : null]
+    .filter(Boolean).length;
+// Card width based on columns and screen width
+const H_PADDING = 12;      // contentContainer padding (6+6)
+const GAP = 6;             // gap between cards
+const cardWidth = (width - H_PADDING - GAP * (columns - 1)) / columns;
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      {/* Top bar */}
       <View style={styles.topBar}>
         <TextInput
           style={styles.search}
@@ -73,24 +82,42 @@ export default function MarketplaceScreen({ navigation }) {
           onSubmitEditing={load}
         />
         <TouchableOpacity onPress={() => setShowFilter(true)} style={styles.filterBtn}>
-          <Text style={styles.filterText}>⚙️ {activeCount > 0 ? `(${activeCount})` : ''}</Text>
+          <Text style={styles.filterText}>
+            ⚙️ {activeCount > 0 ? `(${activeCount})` : ''}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Cart')} style={styles.cartBtn}>
           <Text style={styles.cartText}>🛒 {cartCount}</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Product grid */}
       <FlatList
-        data={products}
-        keyExtractor={(i) => String(i.id)}
-        contentContainerStyle={{ padding: 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        renderItem={({ item }) => (
-          <ProductCard product={item} onPress={() => navigation.navigate('ProductDetails', { product: item })} />
-        )}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>Hakuna bidhaa</Text>}
-      />
+  data={products}
+  key={columns}
+  numColumns={columns}
+  keyExtractor={(i) => String(i.id)}
+  contentContainerStyle={{ padding: 6 }}
+  columnWrapperStyle={{ gap: 6, justifyContent: 'flex-start' }}
+  refreshControl={
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+  }
+  renderItem={({ item }) => (
+    <ProductCard
+      product={item}
+      compact
+      cardWidth={cardWidth}
+      onPress={() => navigation.navigate('ProductDetails', { product: item })}
+    />
+  )}
+  ListEmptyComponent={
+    <Text style={{ textAlign: 'center', marginTop: 40, color: '#888' }}>
+      Hakuna bidhaa
+    </Text>
+  }
+/>
 
+      {/* Filter Modal — same as before */}
       <Modal visible={showFilter} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -105,15 +132,31 @@ export default function MarketplaceScreen({ navigation }) {
                     style={[styles.chip, gradeId === g.id && styles.chipActive]}
                     onPress={() => setGradeId(g.id)}
                   >
-                    <Text style={gradeId === g.id ? styles.chipActiveText : {}}>{g.label}</Text>
+                    <Text style={gradeId === g.id ? styles.chipActiveText : {}}>
+                      {g.label}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <Text style={styles.filterLabel}>Bei (TZS / kg)</Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Kutoka" placeholderTextColor="#888" keyboardType="numeric" value={minPrice} onChangeText={setMinPrice} />
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Hadi" placeholderTextColor="#888" keyboardType="numeric" value={maxPrice} onChangeText={setMaxPrice} />
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="Kutoka"
+                  placeholderTextColor="#888"
+                  keyboardType="numeric"
+                  value={minPrice}
+                  onChangeText={setMinPrice}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="Hadi"
+                  placeholderTextColor="#888"
+                  keyboardType="numeric"
+                  value={maxPrice}
+                  onChangeText={setMaxPrice}
+                />
               </View>
 
               <Text style={styles.filterLabel}>Panga</Text>
@@ -124,17 +167,29 @@ export default function MarketplaceScreen({ navigation }) {
                   { key: 'price_desc', label: 'Bei ↓' },
                   { key: 'rating', label: '⭐ Rating' },
                 ].map((s) => (
-                  <TouchableOpacity key={s.key} style={[styles.chip, sortBy === s.key && styles.chipActive]} onPress={() => setSortBy(s.key)}>
-                    <Text style={sortBy === s.key ? styles.chipActiveText : {}}>{s.label}</Text>
+                  <TouchableOpacity
+                    key={s.key}
+                    style={[styles.chip, sortBy === s.key && styles.chipActive]}
+                    onPress={() => setSortBy(s.key)}
+                  >
+                    <Text style={sortBy === s.key ? styles.chipActiveText : {}}>
+                      {s.label}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <View style={styles.modalBtns}>
-                <TouchableOpacity style={[styles.modalBtn, styles.resetBtn]} onPress={resetFilters}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.resetBtn]}
+                  onPress={resetFilters}
+                >
                   <Text style={styles.resetText}>Safisha</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalBtn, styles.applyBtn]} onPress={() => setShowFilter(false)}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.applyBtn]}
+                  onPress={() => setShowFilter(false)}
+                >
                   <Text style={styles.applyText}>Tumia</Text>
                 </TouchableOpacity>
               </View>
@@ -147,21 +202,38 @@ export default function MarketplaceScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  topBar: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#2e7d32' },
-  search: { flex: 1, backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, color: '#000' },
+  topBar: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 12, backgroundColor: '#2e7d32',
+  },
+  search: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 10, color: '#000',
+  },
   filterBtn: { marginLeft: 8, padding: 10 },
   filterText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   cartBtn: { marginLeft: 4, padding: 10 },
   cartText: { color: '#fff', fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '80%' },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
+  },
+  modalBox: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 20, maxHeight: '80%',
+  },
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
   filterLabel: { fontWeight: '600', marginTop: 16, marginBottom: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ccc' },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, borderColor: '#ccc',
+  },
   chipActive: { backgroundColor: '#2e7d32', borderColor: '#2e7d32' },
   chipActiveText: { color: '#fff', fontWeight: '700' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, color: '#000' },
+  input: {
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
+    padding: 12, color: '#000',
+  },
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 12 },
   modalBtn: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center' },
   resetBtn: { backgroundColor: '#eee' },

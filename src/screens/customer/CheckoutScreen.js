@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
   Alert, ActivityIndicator,
@@ -8,54 +8,30 @@ import api from '../../api/client';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 
+const REGIONS = [
+  'Dar es Salaam', 'Arusha', 'Mwanza', 'Dodoma', 'Mbeya', 'Morogoro',
+  'Tanga', 'Zanzibar', 'Kilimanjaro', 'Tabora', 'Kigoma', 'Iringa',
+  'Mtwara', 'Pwani', 'Ruvuma', 'Singida', 'Shinyanga', 'Mara',
+  'Kagera', 'Lindi', 'Rukwa', 'Katavi', 'Njombe', 'Simiyu',
+  'Geita', 'Songwe', 'Manyara',
+];
+
 export default function CheckoutScreen({ navigation }) {
   const { t } = useTranslation();
   const { items, subtotal, clear } = useCartStore();
   const user = useAuthStore((s) => s.user);
 
-  const [deliveryFee, setDeliveryFee] = useState('0');
   const [address, setAddress] = useState('');
+  const [region, setRegion] = useState('Dar es Salaam');
   const [method, setMethod] = useState('COD');
   const [phone, setPhone] = useState(user?.phone || '');
   const [loading, setLoading] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(0);
-
-  const pollRef = useRef(null);
-  const countdownRef = useRef(null);
-  const orderIdRef = useRef(null);
+  const [showRegionPicker, setShowRegionPicker] = useState(false);
 
   const sub = subtotal();
-  const fee = parseFloat(deliveryFee) || 0;
-  const total = sub + fee;
 
-  // Clean up intervals if the user navigates away
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, []);
-
-  const stopAll = () => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    if (countdownRef.current) clearInterval(countdownRef.current);
-    pollRef.current = null;
-    countdownRef.current = null;
-  };
-
-  const cancelPendingOrder = async (reason = 'customer') => {
-    const orderId = orderIdRef.current;
-    if (!orderId) return;
-    try {
-      await api.post(`/orders/${orderId}/cancel`);
-      console.log(`Order ${orderId} cancelled (${reason})`);
-    } catch (e) {
-      console.warn('Cancel error:', e.response?.data || e.message);
-    }
-  };
-
-  const placeOrderAndMaybePay = async () => {
+  const placeOrder = async () => {
     if (!address) return Alert.alert('', 'Weka anwani ya kufikisha');
     if (method === 'MOBILE_MONEY' && !phone)
       return Alert.alert('', 'Weka namba ya simu');
@@ -67,142 +43,79 @@ export default function CheckoutScreen({ navigation }) {
           product_id: i.product_id,
           quantity_kg: i.quantity_kg,
         })),
-        delivery_fee: fee,
+        delivery_region: region,
+        delivery_address: address,
         payment_method: method,
       });
       const orderId = orderRes.id;
-      orderIdRef.current = orderId;
+      clear();
 
       if (method === 'COD') {
-        clear();
-        Alert.alert('✔', 'Oda imewekwa! Lipa ukifika.', [
-          { text: 'OK', onPress: () => navigation.navigate('Orders') },
-        ]);
-        return;
-      }
-
-      // Mobile money: keep cart until payment succeeds
-      setWaiting(true);
-      try {
-        await api.post('/payments/initiate', { order_id: orderId, phone });
-      } catch (err) {
-        // Payment initiation failed → cancel order
-        await cancelPendingOrder('initiate failed');
-        setWaiting(false);
-        clear();
         Alert.alert(
-          'Malipo hayakuanza',
-          err.response?.data?.error || 'Jaribu tena',
-          [{ text: 'OK' }]
+          '✔',
+          'Oda imewekwa! Muuzaji atakuwekea gharama ya usafiri.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Orders') }]
         );
         return;
       }
 
-      Alert.alert(
-        'Malipo yameanzishwa',
-        'Tafadhali kubali malipo kwenye simu yako.',
-        [{ text: 'Sawa' }]
-      );
+      setWaiting(true);
+      try {
+        await api.post('/payments/initiate', { order_id: orderId, phone });
+      } catch (err) {
+        await api.post(`/orders/${orderId}/cancel`).catch(() => {});
+        setWaiting(false);
+        Alert.alert('Malipo hayakuanza',
+          err.response?.data?.error || 'Jaribu tena');
+        return;
+      }
 
-      // 3-minute window to approve
-      const WINDOW_SECONDS = 180;
-      setSecondsLeft(WINDOW_SECONDS);
-
-      countdownRef.current = setInterval(() => {
-        setSecondsLeft((s) => {
-          if (s <= 1) {
-            clearInterval(countdownRef.current);
-            countdownRef.current = null;
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
+      Alert.alert('Malipo yameanzishwa',
+        'Tafadhali kubali malipo kwenye simu yako.');
 
       let attempts = 0;
-      const maxAttempts = 60; // 60 * 3s = 180s
-
-      pollRef.current = setInterval(async () => {
+      const maxAttempts = 20;
+      const poll = setInterval(async () => {
         attempts++;
         try {
           const { data: st } = await api.get(`/payments/status/${orderId}`);
-
           if (st.status === 'PAID') {
-            stopAll();
+            clearInterval(poll);
             setWaiting(false);
-            clear();
             Alert.alert('✔', 'Malipo yamekamilika!', [
               { text: 'OK', onPress: () => navigation.navigate('Orders') },
             ]);
-          } else if (st.status === 'FAILED') {
-            stopAll();
+          } else if (st.status === 'FAILED' || attempts >= maxAttempts) {
+            clearInterval(poll);
             setWaiting(false);
-            clear();
-            Alert.alert('Malipo yameshindikana', 'Jaribu tena.', [
-              { text: 'OK', onPress: () => navigation.navigate('Orders') },
-            ]);
-          } else if (attempts >= maxAttempts) {
-            stopAll();
-            await cancelPendingOrder('timeout');
-            setWaiting(false);
-            clear();
-            Alert.alert(
-              'Malipo hayakukamilika',
-              'Muda wa malipo umepita. Oda yako imeondolewa.',
-              [{ text: 'OK', onPress: () => navigation.navigate('Orders') }]
-            );
+            navigation.navigate('Orders');
           }
-        } catch (err) {
-          console.warn('Poll error:', err.message);
-        }
+        } catch {}
       }, 3000);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || e.message);
-      setLoading(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const onCancelPayment = () => {
-    Alert.alert(
-      'Acha malipo?',
-      'Oda yako itaondolewa. Unaweza kujaribu tena.',
-      [
-        { text: 'Endelea Kusubiri', style: 'cancel' },
-        {
-          text: 'Acha',
-          style: 'destructive',
-          onPress: async () => {
-            stopAll();
-            await cancelPendingOrder('manual cancel');
-            setWaiting(false);
-            clear();
-            navigation.navigate('Orders');
-          },
-        },
-      ]
-    );
-  };
-
   if (waiting) {
-    const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-    const ss = String(secondsLeft % 60).padStart(2, '0');
     return (
-      <View style={styles.waitingContainer}>
+      <View style={styles.waiting}>
         <ActivityIndicator size="large" color="#2e7d32" />
-        <Text style={styles.waitingText}>Tafadhali kubali malipo kwenye simu yako…</Text>
-        <Text style={styles.waitingHint}>Usifunge app. Inasubiri uthibitisho.</Text>
-        <Text style={styles.countdown}>{mm}:{ss}</Text>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancelPayment}>
-          <Text style={styles.cancelBtnText}>Acha Malipo</Text>
-        </TouchableOpacity>
+        <Text style={styles.waitingText}>
+          Tafadhali kubali malipo kwenye simu yako…
+        </Text>
+        <Text style={styles.waitingHint}>Usifunge app.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#fff' }}
+      contentContainerStyle={{ padding: 16 }}
+    >
       <Text style={styles.label}>Anwani ya kufikisha</Text>
       <TextInput
         style={styles.input}
@@ -210,28 +123,51 @@ export default function CheckoutScreen({ navigation }) {
         value={address}
         onChangeText={setAddress}
         placeholder="Mtaa, Kijiji, Wilaya"
+        placeholderTextColor="#888"
       />
 
-      <Text style={styles.label}>{t('delivery_fee')} (TZS)</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={deliveryFee}
-        onChangeText={setDeliveryFee}
-      />
+      <Text style={styles.label}>Mkoa</Text>
+      <TouchableOpacity
+        style={styles.picker}
+        onPress={() => setShowRegionPicker(!showRegionPicker)}
+      >
+        <Text style={styles.pickerText}>{region}</Text>
+        <Text>▼</Text>
+      </TouchableOpacity>
+
+      {showRegionPicker && (
+        <ScrollView style={styles.regionList} nestedScrollEnabled>
+          {REGIONS.map((r) => (
+            <TouchableOpacity
+              key={r}
+              style={styles.regionItem}
+              onPress={() => {
+                setRegion(r);
+                setShowRegionPicker(false);
+              }}
+            >
+              <Text style={region === r ? styles.regionActive : {}}>{r}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       <Text style={styles.label}>Njia ya Malipo</Text>
       <TouchableOpacity
         style={[styles.method, method === 'COD' && styles.methodActive]}
         onPress={() => setMethod('COD')}
       >
-        <Text style={method === 'COD' ? styles.methodActiveText : {}}>💵 Lipa Ukifika (Cash)</Text>
+        <Text style={method === 'COD' ? styles.methodActiveText : {}}>
+          💵 Lipa Ukifika (Cash)
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.method, method === 'MOBILE_MONEY' && styles.methodActive]}
         onPress={() => setMethod('MOBILE_MONEY')}
       >
-        <Text style={method === 'MOBILE_MONEY' ? styles.methodActiveText : {}}>📱 Malipo kwa Simu</Text>
+        <Text style={method === 'MOBILE_MONEY' ? styles.methodActiveText : {}}>
+          📱 Malipo kwa Simu
+        </Text>
       </TouchableOpacity>
 
       {method === 'MOBILE_MONEY' && (
@@ -243,32 +179,41 @@ export default function CheckoutScreen({ navigation }) {
             value={phone}
             onChangeText={setPhone}
             placeholder="07XXXXXXXX"
+            placeholderTextColor="#888"
           />
         </>
       )}
 
       <View style={styles.summary}>
         <View style={styles.row}>
-          <Text>{t('subtotal')}</Text>
+          <Text>Subtotal</Text>
           <Text>TZS {sub.toLocaleString()}</Text>
         </View>
         <View style={styles.row}>
-          <Text>{t('delivery_fee')}</Text>
-          <Text>TZS {fee.toLocaleString()}</Text>
+          <Text>Usafirishaji</Text>
+          <Text style={{ fontStyle: 'italic', color: '#888' }}>
+            Atabainisha muuzaji
+          </Text>
         </View>
         <View style={[styles.row, styles.totalRow]}>
-          <Text style={{ fontWeight: '700' }}>{t('total')}</Text>
-          <Text style={{ fontWeight: '700', color: '#2e7d32' }}>TZS {total.toLocaleString()}</Text>
+          <Text style={{ fontWeight: '700' }}>Jumla (bila usafiri)</Text>
+          <Text style={{ fontWeight: '700', color: '#2e7d32' }}>
+            TZS {sub.toLocaleString()}
+          </Text>
         </View>
       </View>
 
       <TouchableOpacity
         style={styles.btn}
-        onPress={placeOrderAndMaybePay}
+        onPress={placeOrder}
         disabled={loading}
       >
         <Text style={styles.btnText}>
-          {loading ? '...' : method === 'COD' ? 'Weka Oda' : 'Lipa TZS ' + total.toLocaleString()}
+          {loading
+            ? '...'
+            : method === 'COD'
+            ? 'Weka Oda'
+            : 'Lipa TZS ' + sub.toLocaleString()}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -277,25 +222,52 @@ export default function CheckoutScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   label: { fontWeight: '600', marginTop: 12, marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 },
+  input: {
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
+    padding: 12, color: '#000',
+  },
+  picker: {
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
+    padding: 14, flexDirection: 'row',
+    justifyContent: 'space-between', alignItems: 'center',
+  },
+  pickerText: { fontSize: 15 },
+  regionList: {
+    borderWidth: 1, borderColor: '#eee', borderRadius: 8,
+    marginTop: 6, maxHeight: 200, backgroundColor: '#fafafa',
+  },
+  regionItem: {
+    padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee',
+  },
+  regionActive: { color: '#2e7d32', fontWeight: '700' },
   method: {
-    borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 14, marginBottom: 8,
-    backgroundColor: '#fafafa',
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
+    padding: 14, marginBottom: 8, backgroundColor: '#fafafa',
   },
   methodActive: { backgroundColor: '#2e7d32', borderColor: '#2e7d32' },
   methodActiveText: { color: '#fff', fontWeight: '700' },
-  summary: { marginTop: 24, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  totalRow: { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6, paddingTop: 12 },
-  btn: { backgroundColor: '#2e7d32', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 24 },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  waitingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#fff' },
-  waitingText: { marginTop: 20, fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  waitingHint: { marginTop: 10, color: '#888', textAlign: 'center' },
-  countdown: { marginTop: 20, fontSize: 32, fontWeight: '700', color: '#2e7d32' },
-  cancelBtn: {
-    marginTop: 24, paddingVertical: 12, paddingHorizontal: 24,
-    borderRadius: 8, borderWidth: 1, borderColor: '#c62828',
+  summary: {
+    marginTop: 24, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12,
   },
-  cancelBtnText: { color: '#c62828', fontWeight: '600' },
+  row: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  totalRow: {
+    borderTopWidth: 1, borderTopColor: '#eee',
+    marginTop: 6, paddingTop: 12,
+  },
+  btn: {
+    backgroundColor: '#2e7d32', padding: 16, borderRadius: 8,
+    alignItems: 'center', marginTop: 24, marginBottom: 30,
+  },
+  btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  waiting: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    padding: 24, backgroundColor: '#fff',
+  },
+  waitingText: {
+    marginTop: 20, fontSize: 16, fontWeight: '600', textAlign: 'center',
+  },
+  waitingHint: { marginTop: 10, color: '#888', textAlign: 'center' },
 });
