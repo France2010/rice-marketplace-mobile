@@ -12,10 +12,16 @@ const DEFAULT_IMG = 'https://images.unsplash.com/photo-1586201375761-83865001e31
 export default function ProductDetailsScreen({ route, navigation }) {
   const { t } = useTranslation();
   const { product } = route.params;
+
+  // Cart
   const addItem = useCartStore((s) => s.addItem);
+  const replaceWith = useCartStore((s) => s.replaceWith);
+
+  // Local state
   const [qty, setQty] = useState('1');
   const [reviews, setReviews] = useState({ reviews: [], avg: 0, count: 0 });
 
+  // Fetch reviews
   useEffect(() => {
     api.get(`/reviews/product/${product.id}`)
       .then((r) => setReviews(r.data))
@@ -31,11 +37,33 @@ export default function ProductDetailsScreen({ route, navigation }) {
     if (quantity <= 0) return Alert.alert('', 'Weka kiasi sahihi');
     if (quantity > Number(product.quantity_kg || 0))
       return Alert.alert('', 'Stock haitoshi');
-    addItem(product, quantity);
-    Alert.alert('✔', t('add_to_cart'), [
-      { text: 'OK' },
-      { text: t('cart'), onPress: () => navigation.navigate('Cart') },
-    ]);
+
+    const result = addItem(product, quantity);
+
+    if (result.ok) {
+      Alert.alert('✔', t('add_to_cart'), [
+        { text: 'OK' },
+        { text: t('cart'), onPress: () => navigation.navigate('Cart') },
+      ]);
+    } else if (result.reason === 'different_seller') {
+      Alert.alert(
+        'Kikapu kina bidhaa za muuzaji mwingine',
+        `Kikapu chako kina bidhaa kutoka kwa "${result.sellerName}". Unataka kufuta na kuanza upya?`,
+        [
+          { text: 'Hapana', style: 'cancel' },
+          {
+            text: 'Ndio, safisha',
+            style: 'destructive',
+            onPress: () => {
+              replaceWith(product, quantity);
+              Alert.alert('✔', 'Kikapu kimeanza upya', [
+                { text: 'Cart', onPress: () => navigation.navigate('Cart') },
+              ]);
+            },
+          },
+        ]
+      );
+    }
   };
 
   const callSeller = () => {
@@ -59,6 +87,10 @@ export default function ProductDetailsScreen({ route, navigation }) {
         <Text style={styles.stock}>
           {t('stock')}: {product.quantity_kg ?? 0} kg
         </Text>
+
+        {!!product.seller_name && (
+          <Text style={styles.seller}>🏪 {product.seller_name}</Text>
+        )}
 
         {!!product.description && (
           <Text style={styles.desc}>{product.description}</Text>
@@ -92,7 +124,9 @@ export default function ProductDetailsScreen({ route, navigation }) {
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t('subtotal')}</Text>
-          <Text style={styles.totalValue}>TZS {subtotal.toLocaleString()}</Text>
+          <Text style={styles.totalValue}>
+            TZS {subtotal.toLocaleString()}
+          </Text>
         </View>
 
         <TouchableOpacity style={styles.btn} onPress={onAdd}>
@@ -128,6 +162,7 @@ const styles = StyleSheet.create({
   body: { padding: 16 },
   name: { fontSize: 22, fontWeight: '700' },
   grade: { color: '#666', marginTop: 4 },
+  seller: { color: '#2e7d32', marginTop: 6, fontWeight: '600' },
   price: { color: '#2e7d32', fontSize: 20, fontWeight: '700', marginTop: 10 },
   stock: { color: '#888', marginTop: 4 },
   desc: { marginTop: 12, color: '#444', lineHeight: 20 },
@@ -139,7 +174,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
     padding: 12, marginTop: 6, color: '#000',
   },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
+  totalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', marginTop: 16,
+  },
   totalLabel: { fontSize: 16, fontWeight: '600' },
   totalValue: { fontSize: 16, fontWeight: '700', color: '#2e7d32' },
   btn: {
@@ -147,7 +184,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: 20,
   },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  reviewsSection: { marginTop: 32, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 16 },
+  reviewsSection: {
+    marginTop: 32, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 16,
+  },
   sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
   noReviews: { color: '#888', fontStyle: 'italic' },
   reviewCard: {

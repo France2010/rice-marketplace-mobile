@@ -67,6 +67,13 @@ export default function SellerOrdersScreen({ navigation, route }) {
     }
   };
 
+  const filterCounts = {};
+  FILTERS.forEach((f) => {
+    filterCounts[f.key] = f.key === 'ALL'
+      ? orders.length
+      : orders.filter((o) => o.status === f.key).length;
+  });
+
   const filtered = filter === 'ALL'
     ? orders
     : orders.filter((o) => o.status === filter);
@@ -74,6 +81,9 @@ export default function SellerOrdersScreen({ navigation, route }) {
   const totalRevenue = orders
     .filter((o) => o.status === 'COMPLETED')
     .reduce((s, o) => s + Number(o.total), 0);
+
+  const activeFilterLabel =
+    FILTERS.find((f) => f.key === filter)?.label || '';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
@@ -90,7 +100,7 @@ export default function SellerOrdersScreen({ navigation, route }) {
               onPress={() => setFilter(item.key)}
             >
               <Text style={filter === item.key ? styles.chipActiveText : {}}>
-                {item.label}
+                {item.label} ({filterCounts[item.key]})
               </Text>
             </TouchableOpacity>
           )}
@@ -181,6 +191,14 @@ export default function SellerOrdersScreen({ navigation, route }) {
                   <Text style={styles.btnText}>Tayari</Text>
                 </TouchableOpacity>
               )}
+              {item.status === 'ACCEPTED' && (
+                <TouchableOpacity
+                  style={[styles.btn, styles.accept]}
+                  onPress={() => updateStatus(item.id, 'READY')}
+                >
+                  <Text style={styles.btnText}>Tayari</Text>
+                </TouchableOpacity>
+              )}
               {item.status === 'READY' && (
                 <TouchableOpacity
                   style={[styles.btn, styles.accept]}
@@ -201,9 +219,27 @@ export default function SellerOrdersScreen({ navigation, route }) {
           );
         }}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', marginTop: 40, color: '#888' }}>
-            Hakuna oda
-          </Text>
+          <View style={{ alignItems: 'center', marginTop: 40, padding: 20 }}>
+            <Text style={{ color: '#888', textAlign: 'center', fontSize: 14 }}>
+              Hakuna oda kwenye "{activeFilterLabel}"
+            </Text>
+            {filter !== 'ALL' && (
+              <TouchableOpacity
+                style={{
+                  marginTop: 16,
+                  backgroundColor: '#2e7d32',
+                  padding: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 8,
+                }}
+                onPress={() => setFilter('ALL')}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>
+                  Ona Oda Zote
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         }
       />
     </View>

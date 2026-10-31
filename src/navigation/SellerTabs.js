@@ -2,7 +2,8 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-
+import ProfitLossScreen from '../screens/seller/ProfitLossScreen';
+import MarketComparisonScreen from '../screens/seller/MarketComparisonScreen';
 import SellerDashboardScreen from '../screens/seller/SellerDashboardScreen';
 import SellerProductsScreen from '../screens/seller/SellerProductsScreen';
 import AddProductScreen from '../screens/seller/AddProductScreen';
@@ -36,6 +37,16 @@ function ProductsStack() {
   name="SetDeliveryFee"
   component={SetDeliveryFeeScreen}
   options={{ title: 'Gharama ya Usafiri' }}
+/>
+<Stack.Screen
+  name="ProfitLoss"
+  component={ProfitLossScreen}
+  options={{ title: 'Faida & Hasara' }}
+/>
+<Stack.Screen
+  name="MarketComparison"
+  component={MarketComparisonScreen}
+  options={{ title: 'Soko la Mchele' }}
 />
     </Stack.Navigator>
   );

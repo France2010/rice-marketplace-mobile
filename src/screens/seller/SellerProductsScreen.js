@@ -13,7 +13,6 @@ export default function SellerProductsScreen({ navigation }) {
   const [items, setItems] = useState([]);
   const { width } = useWindowDimensions();
 
-  // 2 columns on normal phones, 3 on larger screens
   const columns = width >= 600 ? 3 : 2;
 
   const load = () =>
@@ -32,13 +31,6 @@ export default function SellerProductsScreen({ navigation }) {
     return '#2e7d32';
   };
 
-  const stockLabel = (kg) => {
-    const n = Number(kg || 0);
-    if (n === 0) return 'Imeisha';
-    if (n < 20) return 'Inakaribia kuisha';
-    return '';
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       <TouchableOpacity
@@ -47,6 +39,22 @@ export default function SellerProductsScreen({ navigation }) {
       >
         <Text style={styles.addText}>+ {t('add_product')}</Text>
       </TouchableOpacity>
+
+      {/* P&L & Market buttons */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 12, gap: 8, marginBottom: 8 }}>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: '#1976d2', padding: 10, borderRadius: 8, alignItems: 'center' }}
+          onPress={() => navigation.navigate('ProfitLoss')}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>📊 Faida & Hasara</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: '#f57c00', padding: 10, borderRadius: 8, alignItems: 'center' }}
+          onPress={() => navigation.navigate('MarketComparison')}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>📈 Soko</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={items}
@@ -57,8 +65,7 @@ export default function SellerProductsScreen({ navigation }) {
         columnWrapperStyle={{ gap: 6, justifyContent: 'flex-start' }}
         renderItem={({ item }) => {
           const qty = Number(item.quantity_kg || 0);
-          const cardWidth =
-            (width - 12 - 6 * (columns - 1)) / columns;
+          const cardWidth = (width - 12 - 6 * (columns - 1)) / columns;
           return (
             <View style={[styles.card, { width: cardWidth }]}>
               <Image
@@ -67,12 +74,7 @@ export default function SellerProductsScreen({ navigation }) {
               />
 
               {qty < 20 && (
-                <View
-                  style={[
-                    styles.warnBadge,
-                    { backgroundColor: stockColor(qty) },
-                  ]}
-                >
+                <View style={[styles.warnBadge, { backgroundColor: stockColor(qty) }]}>
                   <Text style={styles.warnText}>
                     {qty === 0 ? 'Imeisha' : 'Karibu kuisha'}
                   </Text>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ScrollView,
+  Alert, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/client';
@@ -12,9 +12,9 @@ export default function UpdateStockScreen({ route, navigation }) {
 
   const [add, setAdd] = useState('');
   const [replace, setReplace] = useState(String(product.quantity_kg ?? 0));
+  const [cost, setCost] = useState(String(product.cost_per_kg || ''));
   const [loading, setLoading] = useState(false);
 
-  // Option 1: Add to existing stock
   const onAdd = async () => {
     const amount = parseFloat(add);
     if (!amount || amount <= 0) return Alert.alert('', 'Weka kiasi sahihi');
@@ -33,7 +33,6 @@ export default function UpdateStockScreen({ route, navigation }) {
     }
   };
 
-  // Option 2: Replace total stock
   const onReplace = async () => {
     const amount = parseFloat(replace);
     if (isNaN(amount) || amount < 0) return Alert.alert('', 'Weka kiasi sahihi');
@@ -41,7 +40,13 @@ export default function UpdateStockScreen({ route, navigation }) {
     setLoading(true);
     try {
       await api.put(`/products/${product.id}/stock`, { quantity_kg: amount });
-      Alert.alert('✔', `Stock imewekwa: ${amount} kg`, [
+      
+      await api.put(`/products/${product.id}/price`, { 
+        price_per_kg: product.price_per_kg, 
+        cost_per_kg: Number(cost) || 0 
+      });
+
+      Alert.alert('✔', `Stock na Gharama vimehifadhiwa`, [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e) {
@@ -70,6 +75,7 @@ export default function UpdateStockScreen({ route, navigation }) {
           style={styles.input}
           keyboardType="numeric"
           placeholder="Kiasi (kg)"
+          placeholderTextColor="#888"
           value={add}
           onChangeText={setAdd}
         />
@@ -90,16 +96,31 @@ export default function UpdateStockScreen({ route, navigation }) {
           style={styles.input}
           keyboardType="numeric"
           placeholder="Jumla mpya (kg)"
+          placeholderTextColor="#888"
           value={replace}
           onChangeText={setReplace}
         />
+
+        <Text style={{ fontWeight: '600', marginTop: 8, marginBottom: 4 }}>Gharama ya Kununua (TZS/kg)</Text>
+        <TextInput
+          style={styles.input}
+          keyboardType="numeric"
+          placeholder="Mf. 2000"
+          placeholderTextColor="#888"
+          value={cost}
+          onChangeText={setCost}
+        />
+        <Text style={{ fontSize: 12, color: '#888', marginTop: 4, marginBottom: 8 }}>
+          Hii itasaidia kuhesabu faida yako (Profit).
+        </Text>
+
         <TouchableOpacity
           style={[styles.btn, styles.btnSecondary]}
           onPress={onReplace}
           disabled={loading}
         >
           <Text style={styles.btnText}>
-            {loading ? '...' : `Weka ${replace || 0} kg`}
+            {loading ? '...' : `Hifadhi`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -120,7 +141,7 @@ const styles = StyleSheet.create({
   boxHint: { color: '#777', marginBottom: 12, fontSize: 13 },
   input: {
     borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
-    padding: 12, backgroundColor: '#fff', marginBottom: 10,
+    padding: 12, backgroundColor: '#fff', marginBottom: 10, color: '#000',
   },
   btn: {
     backgroundColor: '#2e7d32', padding: 14, borderRadius: 8,

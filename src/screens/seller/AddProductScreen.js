@@ -16,14 +16,15 @@ const GRADES = [
 export default function AddProductScreen({ navigation }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({
-    name: '',
-    grade_id: 1,
-    price_per_kg: '',
-    quantity_kg: '',
-    description: '',
-    image_url: '',
-    origin: '',
-  });
+  name: '',
+  grade_id: 1,
+  price_per_kg: '',
+  cost_per_kg: '',     // NEW
+  quantity_kg: '',
+  description: '',
+  image_url: '',
+  origin: '',
+});
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -78,10 +79,11 @@ export default function AddProductScreen({ navigation }) {
     setLoading(true);
     try {
       await api.post('/products', {
-        ...form,
-        price_per_kg: Number(form.price_per_kg),
-        quantity_kg: Number(form.quantity_kg),
-      });
+  ...form,
+  price_per_kg: Number(form.price_per_kg),
+  cost_per_kg: Number(form.cost_per_kg) || 0,
+  quantity_kg: Number(form.quantity_kg),
+});
       Alert.alert('✔', 'Bidhaa imeongezwa');
       navigation.goBack();
     } catch (e) {
@@ -129,7 +131,18 @@ export default function AddProductScreen({ navigation }) {
 
       <Text style={styles.label}>{t('price_per_kg')}</Text>
       <TextInput style={styles.input} keyboardType="numeric" value={form.price_per_kg} onChangeText={(v) => setForm({ ...form, price_per_kg: v })} />
-
+<Text style={styles.label}>Gharama ya Kununua (TZS / kg)</Text>
+<TextInput
+  style={styles.input}
+  keyboardType="numeric"
+  value={form.cost_per_kg}
+  onChangeText={(v) => setForm({ ...form, cost_per_kg: v })}
+  placeholder="Mf. 2500"
+  placeholderTextColor="#888"
+/>
+<Text style={{ fontSize: 12, color: '#888', marginTop: 4, marginBottom: 8 }}>
+  Hii ni gharama yako ya kununua — sio bei ya kuuza
+</Text>
       <Text style={styles.label}>{t('stock')} (kg)</Text>
       <TextInput style={styles.input} keyboardType="numeric" value={form.quantity_kg} onChangeText={(v) => setForm({ ...form, quantity_kg: v })} />
 

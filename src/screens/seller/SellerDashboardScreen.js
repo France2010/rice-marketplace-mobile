@@ -79,7 +79,20 @@ export default function SellerDashboardScreen({ navigation }) {
           <Text style={styles.cardLabel}>Zilizokamilika</Text>
         </TouchableOpacity>
       </View>
-
+<View style={{ flexDirection: 'row', gap: 12, marginTop: 16, marginBottom: 8 }}>
+  <TouchableOpacity
+    style={[styles.actionBtn, { backgroundColor: '#1976d2' }]}
+    onPress={() => navigation.navigate('Products', { screen: 'ProfitLoss' })}
+  >
+    <Text style={styles.actionBtnText}>📊 Faida & Hasara</Text>
+  </TouchableOpacity>
+  <TouchableOpacity
+    style={[styles.actionBtn, { backgroundColor: '#f57c00' }]}
+    onPress={() => navigation.navigate('Products', { screen: 'MarketComparison' })}
+  >
+    <Text style={styles.actionBtnText}>📈 Soko</Text>
+  </TouchableOpacity>
+</View>
       <Text style={styles.section}>📊 Mauzo ya Siku 7</Text>
       <View style={styles.chartBox}>
         <View style={styles.chartArea}>
@@ -153,6 +166,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     height: 200,
   },
+  actionBtn: {
+  flex: 1, padding: 14, borderRadius: 8, alignItems: 'center',
+},
+actionBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   chartArea: {
     flex: 1,
     flexDirection: 'row',
